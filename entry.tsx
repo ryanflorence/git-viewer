@@ -209,8 +209,9 @@ function Sidebar() {
   return () => (
     <div
       css={{
-        width: "200px",
-        minWidth: "200px",
+        minWidth: "180px",
+        maxWidth: "300px",
+        width: "fit-content",
         borderRight: `1px solid ${colors.border}`,
         display: "flex",
         flexDirection: "column",
@@ -300,6 +301,7 @@ function RefNodeItem(handle: Handle) {
               cursor: "pointer",
               color: colors.textMuted,
               fontSize: "12px",
+              whiteSpace: "nowrap",
               "&:hover": { color: colors.text },
             }}
             on={{
@@ -331,6 +333,7 @@ function RefNodeItem(handle: Handle) {
           background: isSelected ? colors.accentDim : "transparent",
           color: node.current ? colors.accent : colors.text,
           fontWeight: node.current ? 600 : 400,
+          whiteSpace: "nowrap",
           "&:hover": {
             background: isSelected ? colors.accentDim : colors.bgLighter,
           },
