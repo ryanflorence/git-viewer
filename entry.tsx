@@ -212,10 +212,10 @@ function Sidebar(handle: Handle) {
         css={{
           padding: "12px",
           fontWeight: 600,
-          fontSize: "11px",
           textTransform: "uppercase",
           letterSpacing: "0.5px",
           color: colors.textMuted,
+          borderBottom: `1px solid ${colors.border}`,
         }}
       >
         Git Tree Viewer
@@ -413,7 +413,7 @@ function CommitList(handle: Handle) {
           display: "flex",
           alignItems: "center",
           gap: "8px",
-          padding: "8px 12px",
+          padding: "7.5px 12px",
           borderBottom: `1px solid ${colors.border}`,
           background: colors.bgLight,
         }}
