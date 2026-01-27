@@ -1,0 +1,26 @@
+{
+  "name": "git-viewer",
+  "version": "1.0.0",
+  "description": "Visual git log viewer with branch graph and diff display",
+  "author": "Ryan Florence",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "git-viewer": "./dist/server.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "remix": "3.0.0-alpha.1",
+    "@types/node": "^25.0.10",
+    "concurrently": "^9.2.1",
+    "diff2html": "^3.4.55",
+    "esbuild": "^0.25.11"
+  },
+  "scripts": {
+    "start": "concurrently \"pnpm dev\" \"node --experimental-strip-types server.ts\"",
+    "build": "node build.js",
+    "dev": "esbuild entry.tsx --bundle --outfile=entry.bundled.js --format=esm --platform=browser --target=es2020 --sourcemap=inline --watch"
+  }
+}
