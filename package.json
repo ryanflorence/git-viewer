@@ -23,5 +23,8 @@
     "build": "node build.js",
     "dev": "esbuild entry.tsx --bundle --outfile=entry.bundled.js --format=esm --platform=browser --target=es2020 --sourcemap=inline --watch",
     "release": "npm version major && pnpm build && npm publish"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
   }
 }
