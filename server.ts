@@ -12,16 +12,33 @@ import { html as diff2html, parse as parseDiff } from "diff2html";
 let exec = promisify(execCallback);
 
 // Parse repo directory from command line arguments
-let repoDir = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
+let startDir = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
 
-// Validate that the directory exists and is a git repository
-if (!fs.existsSync(repoDir)) {
-  console.error(`Error: Directory does not exist: ${repoDir}`);
+// Validate that the directory exists
+if (!fs.existsSync(startDir)) {
+  console.error(`Error: Directory does not exist: ${startDir}`);
   process.exit(1);
 }
 
-if (!fs.existsSync(path.join(repoDir, ".git"))) {
-  console.error(`Error: Not a git repository: ${repoDir}`);
+// Find the closest git repository by walking up the directory tree
+function findGitRoot(dir: string): string | null {
+  let current = dir;
+  while (true) {
+    if (fs.existsSync(path.join(current, ".git"))) {
+      return current;
+    }
+    let parent = path.dirname(current);
+    if (parent === current) {
+      // Reached filesystem root
+      return null;
+    }
+    current = parent;
+  }
+}
+
+let repoDir = findGitRoot(startDir);
+if (!repoDir) {
+  console.error(`Error: Not a git repository (or any parent): ${startDir}`);
   process.exit(1);
 }
 
