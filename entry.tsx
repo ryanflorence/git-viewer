@@ -56,6 +56,8 @@ type DiffData = {
   files: ChangedFile[];
 };
 
+type Theme = "light" | "dark";
+
 // ============================================================================
 // API
 // ============================================================================
@@ -92,12 +94,14 @@ class AppStore extends TypedEventTarget<{
   filter: Event;
   selectedCommit: Event;
   fullscreenDiff: Event;
+  theme: Event;
 }> {
   refs: RefsData | null = null;
   filter = "all";
   search = "";
   selectedCommit: Commit | null = null;
   fullscreenDiff = false;
+  theme: Theme = "light";
 
   setRefs(refs: RefsData) {
     this.refs = refs;
@@ -112,6 +116,17 @@ class AppStore extends TypedEventTarget<{
   setSearch(search: string) {
     this.search = search;
     this.dispatchEvent(new Event("filter")); // same effect as filter change
+  }
+
+  setTheme(theme: Theme) {
+    this.theme = theme;
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // Ignore storage errors.
+    }
+    applyTheme(theme);
+    this.dispatchEvent(new Event("theme"));
   }
 
   selectCommit(commit: Commit) {
@@ -131,7 +146,9 @@ class AppStore extends TypedEventTarget<{
 // Styles
 // ============================================================================
 
-let colors = {
+const THEME_STORAGE_KEY = "git-viewer-theme";
+
+let lightPalette = {
   bg: "#ffffff",
   bgLight: "#f6f8fa",
   bgLighter: "#eaeef2",
@@ -142,10 +159,33 @@ let colors = {
   accentDim: "#ddf4ff",
   green: "#1a7f37",
   red: "#cf222e",
+  diffAddBg: "#dafbe1",
+  diffDelBg: "#ffebe9",
+  diffAddText: "#116329",
+  diffDelText: "#a40e26",
 };
 
+let darkPalette = {
+  bg: "#0b0f14",
+  bgLight: "#111821",
+  bgLighter: "#1a2431",
+  border: "#283241",
+  text: "#e6edf3",
+  textMuted: "#9aa7b4",
+  accent: "#7aa2ff",
+  accentDim: "#0b1b33",
+  green: "#3fb950",
+  red: "#ff7b72",
+  diffAddBg: "#132a1f",
+  diffDelBg: "#2a1619",
+  diffAddText: "#7ee787",
+  diffDelText: "#ffa198",
+};
+
+let colors = lightPalette;
+
 // Graph lane colors
-let graphColors = [
+let graphColorsLight = [
   "#0969da", // blue
   "#8250df", // purple
   "#bf3989", // pink
@@ -156,6 +196,39 @@ let graphColors = [
   "#0550ae", // dark blue
 ];
 
+let graphColorsDark = [
+  "#7aa2ff", // blue
+  "#b488ff", // purple
+  "#ff8bd3", // pink
+  "#ff7b72", // red
+  "#f5b85b", // orange
+  "#f2cc8f", // amber
+  "#3fb950", // green
+  "#5cc8ff", // cyan
+];
+
+let graphColors = graphColorsLight;
+
+function loadTheme(): Theme {
+  try {
+    let stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {
+    // Ignore storage errors and fall back to system.
+  }
+  let media = window.matchMedia
+    ? window.matchMedia("(prefers-color-scheme: dark)")
+    : null;
+  return media && media.matches ? "dark" : "light";
+}
+
+function applyTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+  document.body.style.backgroundColor =
+    theme === "dark" ? darkPalette.bg : lightPalette.bg;
+}
+
 // ============================================================================
 // App Component
 // ============================================================================
@@ -164,13 +237,23 @@ function App(handle: Handle<AppStore>) {
   let store = new AppStore();
   handle.context.set(store);
 
+  store.setTheme(loadTheme());
+
+  handle.on(store, {
+    theme: () => handle.update(),
+  });
+
   // Load refs
   handle.queueTask(async signal => {
     let refs = await fetchRefs(signal);
     store.setRefs(refs);
   });
 
-  return () => (
+  return () => {
+    colors = store.theme === "dark" ? darkPalette : lightPalette;
+    graphColors = store.theme === "dark" ? graphColorsDark : graphColorsLight;
+
+    return (
     <div
       css={{
         display: "flex",
@@ -185,7 +268,8 @@ function App(handle: Handle<AppStore>) {
       <Sidebar />
       <MainPanel />
     </div>
-  );
+    );
+  };
 }
 
 // ============================================================================
@@ -439,6 +523,7 @@ function CommitList(handle: Handle) {
           />
         )}
         <div css={{ flex: 1 }} />
+        <ThemeToggle />
         <input
           type="text"
           placeholder="Search commits..."
@@ -516,6 +601,67 @@ function CommitList(handle: Handle) {
       </div>
     </div>
   );
+}
+
+function ThemeToggle(handle: Handle) {
+  let store = handle.context.get(App);
+
+  handle.on(store, {
+    theme: () => handle.update(),
+  });
+
+  return () => {
+    let isDark = store.theme === "dark";
+    return (
+      <button
+        aria-label="Toggle theme"
+        title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        css={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+          padding: "4px 10px",
+          border: `1px solid ${colors.border}`,
+          borderRadius: "999px",
+          background: colors.bg,
+          color: colors.text,
+          fontSize: "12px",
+          cursor: "pointer",
+          "&:hover": {
+            borderColor: colors.accent,
+            background: colors.bgLighter,
+          },
+        }}
+        on={{ click: () => store.setTheme(isDark ? "light" : "dark") }}
+      >
+        {isDark ? (
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+          </svg>
+        ) : (
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.5-7.5-1.5 1.5M8 16l-1.5 1.5M16 16l1.5 1.5M8 8 6.5 6.5" />
+          </svg>
+        )}
+        <span>{isDark ? "Dark" : "Light"}</span>
+      </button>
+    );
+  };
 }
 
 function FilterButton(handle: Handle) {
@@ -908,6 +1054,7 @@ function DiffPanel(handle: Handle) {
             {diff ? (
               <section
                 connect={node => (diffContentRef = node)}
+                class={store.theme === "dark" ? "d2h-dark-color-scheme" : ""}
                 css={{
                   "& .d2h-wrapper": { background: "transparent" },
                   "& .d2h-file-header": {
@@ -919,15 +1066,29 @@ function DiffPanel(handle: Handle) {
                     zIndex: 1,
                   },
                   "& .d2h-file-name": { color: colors.text },
-                  "& .d2h-code-line": { padding: "0 8px" },
+                  "& .d2h-code-line": {
+                    padding: "0 8px",
+                    background: colors.bg,
+                  },
                   "& .d2h-code-line-ctn": { color: colors.text },
-                  "& .d2h-ins": { background: "#dafbe1" },
-                  "& .d2h-del": { background: "#ffebe9" },
-                  "& .d2h-ins .d2h-code-line-ctn": { color: colors.green },
-                  "& .d2h-del .d2h-code-line-ctn": { color: colors.red },
+                  "& .d2h-ins": { background: colors.diffAddBg },
+                  "& .d2h-del": { background: colors.diffDelBg },
+                  "& .d2h-ins .d2h-code-line-ctn": {
+                    color: colors.diffAddText,
+                  },
+                  "& .d2h-del .d2h-code-line-ctn": {
+                    color: colors.diffDelText,
+                  },
                   "& .d2h-code-linenumber": {
                     color: colors.textMuted,
+                    background: colors.bgLight,
                     borderRight: `1px solid ${colors.border}`,
+                  },
+                  "& .d2h-code-line-prefix": { color: colors.textMuted },
+                  "& .d2h-emptyplaceholder": { background: colors.bgLight },
+                  "& .d2h-info": {
+                    background: colors.bgLight,
+                    color: colors.textMuted,
                   },
                   "& .d2h-file-diff": {
                     borderBottom: `1px solid ${colors.border}`,
