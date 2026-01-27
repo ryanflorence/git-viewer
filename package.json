@@ -1,7 +1,11 @@
 {
   "name": "git-viewer",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Visual git log viewer with branch graph and diff display",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ryanflorence/git-viewer"
+  },
   "author": "Ryan Florence",
   "license": "MIT",
   "type": "module",
