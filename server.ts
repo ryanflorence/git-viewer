@@ -64,6 +64,7 @@ type Commit = {
   sha: string;
   shortSha: string;
   subject: string;
+  body: string;
   author: string;
   date: string;
   parents: string[];
@@ -80,6 +81,7 @@ type DiffResponse = {
   sha: string;
   shortSha: string;
   subject: string;
+  body: string;
   author: string;
   date: string;
   parents: string[];
@@ -88,11 +90,11 @@ type DiffResponse = {
 
 // Git helpers
 async function git(args: string): Promise<string> {
-  let { stdout } = await exec(`git ${args}`, {
+  let { stdout } = await exec(`git -c color.ui=never ${args}`, {
     cwd: repoDir,
     maxBuffer: 10 * 1024 * 1024,
   });
-  return stdout.trim();
+  return stdout.trimEnd();
 }
 
 async function getCurrentBranch(): Promise<string> {
@@ -192,8 +194,8 @@ async function getCommits(
   ref?: string,
   search?: string,
 ): Promise<CommitsResponse> {
-  let format = "%H%x00%h%x00%s%x00%an%x00%ai%x00%P%x00%D";
-  let args = `log --format="${format}" -n 500`;
+  let format = "%H%x1f%h%x1f%s%x1f%b%x1f%an%x1f%ai%x1f%P%x1f%D";
+  let args = `log -z --format="${format}" -n 500`;
 
   if (ref && ref !== "all") {
     args += ` ${ref}`;
@@ -202,15 +204,16 @@ async function getCommits(
   }
 
   let output = await git(args);
-  let lines = output ? output.split("\n").filter(Boolean) : [];
+  let records = output ? output.split("\x00").filter(Boolean) : [];
 
-  let rawCommits = lines.map(line => {
-    let [sha, shortSha, subject, author, date, parents, refs] =
-      line.split("\x00");
+  let rawCommits = records.map(record => {
+    let [sha, shortSha, subject, body, author, date, parents, refs] =
+      record.split("\x1f");
     return {
       sha,
       shortSha,
       subject,
+      body: body ? body.trimEnd() : "",
       author,
       date: formatDate(date),
       parents: parents ? parents.split(" ").filter(Boolean) : [],
@@ -222,12 +225,10 @@ async function getCommits(
   let filteredCommits = rawCommits;
   if (search) {
     let query = search.toLowerCase();
-    filteredCommits = rawCommits.filter(
-      c =>
-        c.subject.toLowerCase().includes(query) ||
-        c.author.toLowerCase().includes(query) ||
-        c.sha.toLowerCase().includes(query),
-    );
+    filteredCommits = rawCommits.filter(c => {
+      let haystack = `${c.subject}\n${c.body}\n${c.author}\n${c.sha}`;
+      return haystack.toLowerCase().includes(query);
+    });
   }
 
   // Compute graph lanes
@@ -379,10 +380,11 @@ function formatDate(date: string): string {
 }
 
 async function getDiff(sha: string): Promise<DiffResponse> {
-  let format = "%H%x00%h%x00%s%x00%an%x00%ai%x00%P";
-  let metaOutput = await git(`show --format="${format}" -s ${sha}`);
-  let [fullSha, shortSha, subject, author, date, parents] =
-    metaOutput.split("\x00");
+  let format = "%H%x1f%h%x1f%s%x1f%b%x1f%an%x1f%ai%x1f%P";
+  let metaOutput = await git(`show -z --format="${format}" -s ${sha}`);
+  let [record] = metaOutput.split("\x00");
+  let [fullSha, shortSha, subject, body, author, date, parents] =
+    record.split("\x1f");
 
   let diffOutput = await git(`show --format="" ${sha}`);
 
@@ -396,6 +398,7 @@ async function getDiff(sha: string): Promise<DiffResponse> {
     sha: fullSha,
     shortSha,
     subject,
+    body: body ? body.trimEnd() : "",
     author,
     date: formatDate(date),
     parents: parents ? parents.split(" ").filter(Boolean) : [],

@@ -25,6 +25,7 @@ type Commit = {
   sha: string;
   shortSha: string;
   subject: string;
+  body: string;
   author: string;
   date: string;
   parents: string[];
@@ -36,6 +37,7 @@ type DiffData = {
   sha: string;
   shortSha: string;
   subject: string;
+  body: string;
   author: string;
   date: string;
   parents: string[];
@@ -690,6 +692,18 @@ function DiffPanel() {
               {state.selectedCommit.shortSha}
             </code>
           </div>
+          {state.selectedCommit.body ? (
+            <div
+              css={{
+                marginTop: "8px",
+                whiteSpace: "pre-wrap",
+                fontSize: "12px",
+                lineHeight: "1.4",
+              }}
+            >
+              {state.selectedCommit.body}
+            </div>
+          ) : null}
         </div>
 
         {/* Diff content */}
