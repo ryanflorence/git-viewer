@@ -1,6 +1,6 @@
 {
   "name": "git-viewer",
-  "version": "14.0.0",
+  "version": "15.0.0",
   "description": "Visual git log viewer with branch graph and diff display",
   "repository": {
     "type": "git",
